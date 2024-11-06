@@ -14,7 +14,9 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/mtslzr/pokeapi-go/structs"
 	"github.com/romangurevitch/concurrencyworkshop/internal/challenge/implme/intermediate/poke/client"
+	"github.com/romangurevitch/concurrencyworkshop/internal/pattern/pubsub"
 )
 
 const (
@@ -45,7 +47,16 @@ func NewPokeApp(pokeClient client.PokeClient) PokeAPP {
 	}
 }
 
+type pokeResult struct {
+	poke *structs.Pokemon
+	err  error
+}
+
+var ps = pubsub.NewPubSub[pokeResult]()
+var ch = make(chan pubsub.Result[pokeResult], 1)
+
 func (p *pokeAPP) Start() {
+	ps.Subscribe("topic1", ch)
 	myApp := app.New()
 	myWindow := myApp.NewWindow("PokeGUI")
 	myWindow.Resize(fyne.NewSize(windowWidth, windowHeight))
@@ -76,10 +87,26 @@ func (p *pokeAPP) OnChanged(id string) {
 // TODO: Implement OnChangedNonBlocking to fetch and update Pokémon details asynchronously.
 func (p *pokeAPP) OnChangedNonBlocking(id string) {
 	fmt.Println("OnChangedNonBlocking")
+	if id == "" {
+		p.setImage(defaultURL)
+		return
+	}
 	go func() {
-		_, err := p.fetchAndUpdatePokemon(id)
-		if err != nil {
-			slog.Error("fetchAndUpdatePokemon", "error", err)
+		fmt.Println("OnChangedNonBlocking publish topic1")
+		poke, err := p.pokeClient.FetchPokemon(id)
+		ps.Publish("topic1", pokeResult{poke: poke, err: err})
+	}()
+
+	go func() {
+		value, ok := <-ch
+		if ok {
+			if value.Value.err != nil {
+				p.setName("Not Found")
+				p.setImage(notFoundImageURL)
+			} else if value.Value.poke != nil {
+				p.setName(value.Value.poke.Name)
+				p.setImage(value.Value.poke.Sprites.FrontDefault)
+			}
 		}
 	}()
 }
