@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -24,7 +23,7 @@ func TestWaitGroupWithoutDefer(t *testing.T) {
 
 	finishedFunc := func() {
 		finishedSuccessfully = true
-		runtime.Goexit()
+		// runtime.Goexit()
 	}
 
 	wg.Add(1)
@@ -77,25 +76,27 @@ func TestContextIgnoringCancellation(t *testing.T) {
 		case <-inputCh:
 		}
 	}()
+	inputCh <- true
 
 	wg.Wait()
 }
 
 // nolint
 func TestMultipleProducersCloseChannel(t *testing.T) {
-	ch := make(chan int)
+	ch := make(chan int, 2)
 	wg := sync.WaitGroup{}
 
 	producer := func() {
 		defer wg.Done()
 		ch <- 1
-		close(ch)
+		// close(ch)
 	}
 
 	wg.Add(2)
 	go producer()
 	go producer()
-
+	wg.Wait()
+	close(ch)
 	for val := range ch {
 		slog.Info("successfully received", "value", val)
 	}
