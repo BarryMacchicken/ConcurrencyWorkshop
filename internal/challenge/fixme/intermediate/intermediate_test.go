@@ -51,7 +51,8 @@ func TestErrGroupUsage(t *testing.T) {
 
 // TestContextPropagation demonstrates the propagation of context cancellation through multiple layers.
 func TestContextPropagation(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Microsecond)
+	defer cancel()
 	var wg sync.WaitGroup
 
 	wg.Add(2)
@@ -69,7 +70,6 @@ func TestContextPropagation(t *testing.T) {
 	wg.Wait()
 	select {
 	case <-ctx.Done():
-		return
 		// Expected case
 	case <-time.After(time.Second * 2):
 		t.Error("Context cancellation propagation took too long")
