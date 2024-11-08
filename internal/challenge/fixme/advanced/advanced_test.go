@@ -40,8 +40,9 @@ func TestWaitGroupWithoutDefer(t *testing.T) {
 func TestErrGroupWithoutWithContext(t *testing.T) {
 	test.ExitAfter(10 * time.Millisecond)
 	expectedErr := errors.New("error")
-	ctx := context.Background()
-	group := errgroup.Group{}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	group, ctx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
 		return expectedErr
