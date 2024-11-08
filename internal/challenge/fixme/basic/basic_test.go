@@ -24,10 +24,7 @@ func TestNilChannel(t *testing.T) {
 		ch <- 1
 	}()
 
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
+	close(ch)
 	for val := range ch {
 		slog.Info("successfully received", "value", val)
 	}
