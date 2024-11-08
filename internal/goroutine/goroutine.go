@@ -193,10 +193,10 @@ func NonStoppingGoRoutineContext(ctx context.Context) (int, bool) {
 		for {
 			select {
 			case <-ctx.Done():
-				slog.Info("shutting down goroutine", "reason", ctx.Err())
+				slog.Info("shutting down goroutine done", "reason", ctx.Err())
 				return
 			case reason := <-sigs:
-				slog.Info("shutting down goroutine", "reason", reason)
+				slog.Info("shutting down goroutine with sigs", "reason", reason)
 				return
 			default:
 				inlinePrint(atomicCounter.Inc())
@@ -225,7 +225,7 @@ func NonStoppingGoRoutineContextBetter(ctx context.Context) (int, bool) {
 		for {
 			select {
 			case <-ctx.Done():
-				slog.Info("shutting down goroutine", "reason", ctx.Err())
+				slog.Info("shutting down goroutine with done", "reason", ctx.Err())
 				return
 			default:
 				inlinePrint(atomicCounter.Inc())
