@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -53,10 +52,10 @@ type pokeResult struct {
 }
 
 var ps = pubsub.NewPubSub[pokeResult]()
-var ch = make(chan pubsub.Result[pokeResult], 1)
+var resultsCh = make(chan pubsub.Result[pokeResult], 1)
 
 func (p *pokeAPP) Start() {
-	ps.Subscribe("topic1", ch)
+	ps.Subscribe("topic1", resultsCh)
 	myApp := app.New()
 	myWindow := myApp.NewWindow("PokeGUI")
 	myWindow.Resize(fyne.NewSize(windowWidth, windowHeight))
@@ -64,6 +63,21 @@ func (p *pokeAPP) Start() {
 	p.input.SetPlaceHolder("e.g., pikachu or 25")
 	// TODO: impl and use OnChangedNonBlocking to improve responsiveness of the app
 	p.input.OnChanged = p.OnChangedNonBlocking
+	go func() {
+		for result := range resultsCh {
+			if result.Value.err != nil {
+				p.setName("Not Found")
+				p.setImage(notFoundImageURL)
+			} else if result.Value.poke != nil {
+				p.setName(result.Value.poke.Name)
+				p.setImage(result.Value.poke.Sprites.FrontDefault)
+			}
+		}
+	}()
+	myWindow.SetOnClosed(func() {
+		ps.Unsubscribe("topic1", resultsCh)
+		close(resultsCh)
+	})
 
 	content := container.NewStack(container.NewVBox(p.header, p.input), p.img)
 	myWindow.SetContent(content)
@@ -86,28 +100,13 @@ func (p *pokeAPP) OnChanged(id string) {
 // The function is currently not implemented and will panic if used.
 // TODO: Implement OnChangedNonBlocking to fetch and update Pokémon details asynchronously.
 func (p *pokeAPP) OnChangedNonBlocking(id string) {
-	fmt.Println("OnChangedNonBlocking")
 	if id == "" {
 		p.setImage(defaultURL)
 		return
 	}
 	go func() {
-		fmt.Println("OnChangedNonBlocking publish topic1")
 		poke, err := p.pokeClient.FetchPokemon(id)
 		ps.Publish("topic1", pokeResult{poke: poke, err: err})
-	}()
-
-	go func() {
-		value, ok := <-ch
-		if ok {
-			if value.Value.err != nil {
-				p.setName("Not Found")
-				p.setImage(notFoundImageURL)
-			} else if value.Value.poke != nil {
-				p.setName(value.Value.poke.Name)
-				p.setImage(value.Value.poke.Sprites.FrontDefault)
-			}
-		}
 	}()
 }
 
